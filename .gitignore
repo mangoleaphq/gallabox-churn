@@ -18,6 +18,9 @@ subs_live.json
 pb_data/
 pocketbase
 
+# Dev tooling
+.superset/
+
 # Evo optimizer and GitNexus index (auto-generated)
 .evo/
 .gitnexus/
