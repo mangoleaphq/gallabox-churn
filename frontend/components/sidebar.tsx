@@ -2,13 +2,12 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Activity, LogOut, Sparkles, Ticket, TrendingUp, Settings } from "lucide-react";
+import { Activity, LogOut, Sparkles, Ticket, TrendingUp } from "lucide-react";
 
 const NAV = [
   { icon: Activity,   href: "/app",     title: "Accounts" },
   { icon: Ticket,     href: "/tickets", title: "Tickets"  },
   { icon: TrendingUp, href: "/metrics", title: "Metrics"  },
-  { icon: Settings,   href: "#",        title: "Settings" },
 ];
 
 export default function Sidebar() {
