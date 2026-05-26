@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Sidebar from "@/components/sidebar";
-import { cn } from "@/lib/utils";
+import { cn, accountAge, formatMrr } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -110,38 +110,6 @@ type ZohoTicket = {
   web_url: string;
 };
 
-function accountAge(cbCreatedAt?: string): { label: string; dateStr: string; ageDays: number; stage: "new" | "ramping" | "mature" } {
-  if (!cbCreatedAt) return { label: "—", dateStr: "—", ageDays: 0, stage: "mature" };
-  const ts = parseInt(cbCreatedAt);
-  if (!ts) return { label: "—", dateStr: "—", ageDays: 0, stage: "mature" };
-  const created = new Date(ts * 1000);
-  const ageDays = Math.floor((Date.now() / 1000 - ts) / 86400);
-  const dateStr = created.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-  let label: string;
-  if (ageDays < 1)        label = "Today";
-  else if (ageDays < 30)  label = `${ageDays} days`;
-  else if (ageDays < 365) label = `${Math.floor(ageDays / 30)} months`;
-  else {
-    const y = Math.floor(ageDays / 365);
-    const m = Math.floor((ageDays % 365) / 30);
-    label = m > 0 ? `${y}y ${m}mo` : `${y} year${y > 1 ? "s" : ""}`;
-  }
-  const stage = ageDays < 60 ? "new" : ageDays < 180 ? "ramping" : "mature";
-  return { label, dateStr, ageDays, stage };
-}
-
-function formatMrr(amount: number, currency: string): string {
-  if (!amount || amount === 0) return "—";
-  const formatted = amount.toLocaleString("en-IN", { maximumFractionDigits: 0 });
-  switch (currency) {
-    case "INR": return `₹${formatted}`;
-    case "USD": return `$${formatted}`;
-    case "AED": return `AED ${formatted}`;
-    case "EUR": return `€${formatted}`;
-    case "GBP": return `£${formatted}`;
-    default: return `${currency} ${formatted}`;
-  }
-}
 
 export default function CustomerPage() {
   const router = useRouter();
@@ -161,6 +129,7 @@ export default function CustomerPage() {
   // Mongo Data tab state
   const [mongoLoaded, setMongoLoaded] = useState(false);
   const [mongoLoading, setMongoLoading] = useState(false);
+  const [mongoError, setMongoError] = useState<string | null>(null);
   const [mongoBotflows, setMongoBotflows] = useState<{ total: number; useCases: Record<string, number>; names: string[] } | null>(null);
   const [mongoBotSessions, setMongoBotSessions] = useState<{ sessions: number; completed: number } | null>(null);
   const [mongoIg, setMongoIg] = useState<{ channels: any[]; automations: any[]; commentCount: number } | null>(null);
@@ -181,7 +150,9 @@ export default function CustomerPage() {
       setMongoIg(igRes);
       setMongoSub(subRes.subscription || null);
       setMongoLoaded(true);
-    } catch (e) { console.error(e); }
+    } catch (e: any) {
+      setMongoError(e?.message || "Failed to load MongoDB data");
+    }
     setMongoLoading(false);
   };
 
@@ -782,7 +753,14 @@ export default function CustomerPage() {
                 </div>
               )}
 
-              {!mongoLoading && mongoLoaded && (
+              {!mongoLoading && mongoError && (
+                <div className="flex items-center gap-2 py-12 justify-center text-red-500">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm">{mongoError}</span>
+                </div>
+              )}
+
+              {!mongoLoading && !mongoError && mongoLoaded && (
                 <>
                   {/* Subscription */}
                   {mongoSub && (

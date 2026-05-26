@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "@/components/sidebar";
-import { cn } from "@/lib/utils";
+import { cn, accountAge, formatMrr } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -55,38 +55,8 @@ type Account = {
 
 type SortKey = "churn_score" | "upsell_score" | "mrr" | "convos_30d" | "company" | "cb_created_at";
 
-function accountAge(cbCreatedAt?: string): { label: string; ageDays: number; stage: "new" | "ramping" | "mature" } {
-  if (!cbCreatedAt) return { label: "—", ageDays: 0, stage: "mature" };
-  const ts = parseInt(cbCreatedAt);
-  if (!ts) return { label: "—", ageDays: 0, stage: "mature" };
-  const ageDays = Math.floor((Date.now() / 1000 - ts) / 86400);
-  let label: string;
-  if (ageDays < 1)       label = "Today";
-  else if (ageDays < 30) label = `${ageDays}d`;
-  else if (ageDays < 365) label = `${Math.floor(ageDays / 30)}mo`;
-  else {
-    const y = Math.floor(ageDays / 365);
-    const m = Math.floor((ageDays % 365) / 30);
-    label = m > 0 ? `${y}y ${m}mo` : `${y}y`;
-  }
-  const stage = ageDays < 60 ? "new" : ageDays < 180 ? "ramping" : "mature";
-  return { label, ageDays, stage };
-}
 type SortDir = "asc" | "desc";
 type Tab = "all" | "red" | "yellow" | "green" | "upsell";
-
-function formatMrr(amount: number, currency: string): string {
-  if (!amount || amount === 0) return "—";
-  const formatted = amount.toLocaleString("en-IN", { maximumFractionDigits: 0 });
-  switch (currency) {
-    case "INR": return `₹${formatted}`;
-    case "USD": return `$${formatted}`;
-    case "AED": return `AED ${formatted}`;
-    case "EUR": return `€${formatted}`;
-    case "GBP": return `£${formatted}`;
-    default: return `${currency} ${formatted}`;
-  }
-}
 
 function formatInrShort(amount: number): string {
   if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;

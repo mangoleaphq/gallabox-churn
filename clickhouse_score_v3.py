@@ -17,7 +17,7 @@ Weight allocation:
   Zoho Desk  → 20% of churn,   5% of upsell
   Zoho CRM   → 10% of churn,  25% of upsell
 """
-import json, urllib.request, urllib.parse, base64, ssl, time, os, sys
+import json, urllib.request, urllib.parse, base64, ssl, time, os, sys, subprocess
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -28,6 +28,7 @@ CURRENCY_RATES = {
     'INR': 1.0, 'USD': 83.5, 'AED': 22.7,
     'EUR': 90.0, 'GBP': 105.0, 'SGD': 62.0, 'SAR': 22.3,
 }
+SECONDS_PER_DAY = 86400
 
 def to_inr(amount, currency):
     return amount * CURRENCY_RATES.get(currency, 1.0)
@@ -62,7 +63,6 @@ def pb(method, path, data=None):
 # ── ClickHouse ────────────────────────────────────────────────────────────────
 def ch_query(sql, retries=3, delay=5):
     # curl used on macOS — Python TLS stack (urllib/httpx) fails to ClickHouse Cloud SSL handshake
-    import subprocess, time
     cmd = [
         "/usr/bin/curl", "-s", "--connect-timeout", "30", "--max-time", "120",
         "-u", f"{CH_USER}:{CH_PASS}",
@@ -78,7 +78,6 @@ def ch_query(sql, retries=3, delay=5):
         if attempt < retries - 1:
             time.sleep(delay)
     raise RuntimeError(f"ClickHouse query failed after {retries} attempts: {last_err}")
-    return json.loads(result.stdout)
 
 def fetch_ch_metrics():
     print("  [CH] Fetching ClickHouse metrics...")
@@ -203,9 +202,9 @@ def fetch_ch_metrics():
         COUNTIf(whatsapp_conversation_origin_type = 'service')    AS service_msgs,
         COUNTIf(whatsapp_template_templateId != '')               AS template_sends,
         COUNT()                                                   AS total_msgs_30d,
-        COUNTIf(whatsapp_conversation_origin_type IN ('marketing','utility')) AS proactive_msgs_30d,
         -- broadcasts = marketing + utility (proactive outbound), same as proactive_msgs_30d
         COUNTIf(whatsapp_conversation_origin_type IN ('marketing','utility')) AS broadcasts_30d,
+        broadcasts_30d AS proactive_msgs_30d,
         0                                                         AS sequences_active
     FROM default.messages
     WHERE createdAt >= now() - INTERVAL 30 DAY AND accountId != ''
@@ -368,7 +367,7 @@ def fetch_crm_signals():
     return crm
 
 # ── SCORING MODEL v3 ──────────────────────────────────────────────────────────
-def compute_scores_v3(billing, ch, desk, crm):
+def compute_scores_v3(billing, usage, tickets, kam):
     """
     4-source churn + upsell scoring.
 
@@ -400,20 +399,20 @@ def compute_scores_v3(billing, ch, desk, crm):
     else:
         lifecycle = "mature"    # 6+ months: established pattern
 
-    c7        = ch.get("convos_7d", 0)
-    p7        = ch.get("convos_prev_7d", 0)
-    c30       = ch.get("convos_30d", 0)
-    c_prev30  = ch.get("convos_prev_30d", 0)
-    c90       = ch.get("convos_90d", 0)
-    avg_msgs  = ch.get("avg_msgs_per_convo", 0)
-    bot_ratio = ch.get("bot_ratio", 0)
-    frt       = ch.get("avg_frt_secs", 0)
-    res_rate  = ch.get("resolution_rate", 0)
-    agents    = ch.get("active_agents", 0)
-    bots      = ch.get("active_bots", 0)
-    channels  = ch.get("total_channels", 0)
-    trend     = ch.get("trend_consistency", 0)
-    ch_types  = ch.get("channel_types", 0)
+    c7        = usage.get("convos_7d", 0)
+    p7        = usage.get("convos_prev_7d", 0)
+    c30       = usage.get("convos_30d", 0)
+    c_prev30  = usage.get("convos_prev_30d", 0)
+    c90       = usage.get("convos_90d", 0)
+    avg_msgs  = usage.get("avg_msgs_per_convo", 0)
+    bot_ratio = usage.get("bot_ratio", 0)
+    frt       = usage.get("avg_frt_secs", 0)
+    res_rate  = usage.get("resolution_rate", 0)
+    agents    = usage.get("active_agents", 0)
+    bots      = usage.get("active_bots", 0)
+    channels  = usage.get("total_channels", 0)
+    trend     = usage.get("trend_consistency", 0)
+    ch_types  = usage.get("channel_types", 0)
     has_ch    = c30 > 0
 
     wow = round((c7 - p7) / p7 * 100, 1) if p7 > 0 else 0
@@ -421,23 +420,23 @@ def compute_scores_v3(billing, ch, desk, crm):
     # Feature adoption depth — how many distinct product capabilities are in use
     features_used = sum([
         1 if bot_ratio > 5 else 0,
-        1 if ch.get("broadcasts_30d", 0) > 0 else 0,
-        1 if ch.get("sequences_active", 0) > 0 else 0,
+        1 if usage.get("broadcasts_30d", 0) > 0 else 0,
+        1 if usage.get("sequences_active", 0) > 0 else 0,
         1 if ch_types >= 2 else 0,
-        1 if ch.get("template_sends_30d", 0) > 0 else 0,
+        1 if usage.get("template_sends_30d", 0) > 0 else 0,
     ])
 
-    d_open      = desk.get("open", 0)
-    d_churn     = desk.get("churn", 0)
-    d_escalated = desk.get("escalated", 0)
-    d_overdue   = desk.get("overdue", 0)
-    d_total     = desk.get("total", 0)
+    d_open      = tickets.get("open", 0)
+    d_churn     = tickets.get("churn", 0)
+    d_escalated = tickets.get("escalated", 0)
+    d_overdue   = tickets.get("overdue", 0)
+    d_total     = tickets.get("total", 0)
 
-    icp             = (crm.get("icp") or "").lower()
-    expansion       = (crm.get("expansion_scope") or "").lower()
-    upgrade_poss    = crm.get("upgrade_possible", False)
-    segmentation    = (crm.get("segmentation") or "").lower()
-    kam_status      = (crm.get("kam_status") or "").lower()
+    icp             = (kam.get("icp") or "").lower()
+    expansion       = (kam.get("expansion_scope") or "").lower()
+    upgrade_poss    = kam.get("upgrade_possible", False)
+    segmentation    = (kam.get("segmentation") or "").lower()
+    kam_status      = (kam.get("kam_status") or "").lower()
 
     churn_reasons  = []
     upsell_reasons = []
@@ -615,7 +614,7 @@ def compute_scores_v3(billing, ch, desk, crm):
     # ── Source 4: Zoho CRM (max 10) ──
     if "at risk" in kam_status or "churned" in kam_status:
         churn += 10
-        churn_reasons.append(f"KAM flagged account status: {crm.get('kam_status')}")
+        churn_reasons.append(f"KAM flagged account status: {kam.get('kam_status')}")
     elif "churning" in kam_status:
         churn += 8
         churn_reasons.append("KAM status: churning")
@@ -706,8 +705,8 @@ def compute_scores_v3(billing, ch, desk, crm):
             upsell += 3
 
         # ── Source 2 (cont): Gallabox-native growth signals ──
-        new_c30   = int(ch.get("new_contacts_30d", 0) or 0)
-        proactive = int(ch.get("proactive_msgs_30d", 0) or 0)
+        new_c30   = int(usage.get("new_contacts_30d", 0) or 0)
+        proactive = int(usage.get("proactive_msgs_30d", 0) or 0)
 
         if new_c30 > 500:
             upsell += 8
@@ -821,8 +820,8 @@ def compute_scores_v3(billing, ch, desk, crm):
         "convos_7d":         c7,
         "convos_30d":        c30,
         "wow_delta":         wow,
-        "messages_7d":       ch.get("messages_7d", 0),
-        "avg_msgs_per_convo":ch.get("avg_msgs_per_convo", 0),
+        "messages_7d":       usage.get("messages_7d", 0),
+        "avg_msgs_per_convo":usage.get("avg_msgs_per_convo", 0),
         "bot_ratio":         bot_ratio,
         "resolution_rate":   res_rate,
         "avg_frt_secs":      frt,
@@ -831,22 +830,22 @@ def compute_scores_v3(billing, ch, desk, crm):
         "total_channels":    channels,
         "trend_consistency": trend,
         "baseline_pct":      round(c30 / 500 * 100) if c30 > 0 else 0,
-        "convos_90d":           ch.get("convos_90d", 0),
-        "convos_prev_30d":      ch.get("convos_prev_30d", 0),
-        "new_contacts_7d":      ch.get("new_contacts_7d", 0),
-        "new_contacts_30d":     ch.get("new_contacts_30d", 0),
-        "new_contacts_90d":     ch.get("new_contacts_90d", 0),
-        "total_contacts":       ch.get("total_contacts", 0),
-        "open_backlog_pct":     ch.get("open_backlog_pct", 0),
-        "contact_initiated_pct":ch.get("contact_initiated_pct", 0),
-            "marketing_msgs_30d":   ch.get("marketing_msgs_30d", 0),
-            "utility_msgs_30d":     ch.get("utility_msgs_30d", 0),
-            "service_msgs_30d":     ch.get("service_msgs_30d", 0),
-            "template_sends_30d":   ch.get("template_sends_30d", 0),
-            "broadcasts_30d":       ch.get("broadcasts_30d", 0),
-            "sequences_active":     ch.get("sequences_active", 0),
-            "total_msgs_30d":       ch.get("total_msgs_30d", 0),
-            "proactive_msgs_30d":   ch.get("proactive_msgs_30d", 0),
+        "convos_90d":           usage.get("convos_90d", 0),
+        "convos_prev_30d":      usage.get("convos_prev_30d", 0),
+        "new_contacts_7d":      usage.get("new_contacts_7d", 0),
+        "new_contacts_30d":     usage.get("new_contacts_30d", 0),
+        "new_contacts_90d":     usage.get("new_contacts_90d", 0),
+        "total_contacts":       usage.get("total_contacts", 0),
+        "open_backlog_pct":     usage.get("open_backlog_pct", 0),
+        "contact_initiated_pct":usage.get("contact_initiated_pct", 0),
+        "marketing_msgs_30d":   usage.get("marketing_msgs_30d", 0),
+        "utility_msgs_30d":     usage.get("utility_msgs_30d", 0),
+        "service_msgs_30d":     usage.get("service_msgs_30d", 0),
+        "template_sends_30d":   usage.get("template_sends_30d", 0),
+        "broadcasts_30d":       usage.get("broadcasts_30d", 0),
+        "sequences_active":     usage.get("sequences_active", 0),
+        "total_msgs_30d":       usage.get("total_msgs_30d", 0),
+        "proactive_msgs_30d":   usage.get("proactive_msgs_30d", 0),
     }
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
@@ -908,14 +907,14 @@ def main():
             # Account age from Chargebee creation timestamp
             try:
                 cb_ts = int(acc.get("cb_created_at", 0) or 0)
-                account_age_days = max(0, (time.time() - cb_ts) / 86400) if cb_ts > 0 else 999
+                account_age_days = max(0, (time.time() - cb_ts) / SECONDS_PER_DAY) if cb_ts > 0 else 999
             except Exception:
                 account_age_days = 999
 
             # Days until next renewal/billing date
             try:
                 nba = int(sub.get("next_billing_at", 0) or 0)
-                days_to_renewal = max(0, (nba - time.time()) / 86400) if nba > 0 else 999
+                days_to_renewal = max(0, (nba - time.time()) / SECONDS_PER_DAY) if nba > 0 else 999
             except Exception:
                 days_to_renewal = 999
 
