@@ -5,7 +5,6 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Allow public paths and static assets
   if (
     PUBLIC_PATHS.some(p => pathname.startsWith(p)) ||
     pathname.startsWith("/_next") ||
@@ -14,8 +13,10 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get("pb_auth")?.value;
-  if (!token) {
+  const cookie = req.cookies.get("app_auth")?.value;
+  const secret = process.env.AUTH_SECRET;
+
+  if (!cookie || !secret || cookie !== secret) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
