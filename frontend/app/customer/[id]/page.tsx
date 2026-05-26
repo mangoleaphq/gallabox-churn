@@ -124,7 +124,36 @@ export default function CustomerPage() {
   const [noteBody, setNoteBody] = useState("");
   const [author, setAuthor] = useState("CSM");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"activity" | "ai" | "tickets" | "mongo" | "sub-accounts">("activity");
+  const [activeTab, setActiveTab] = useState<"activity" | "ai" | "tickets" | "mongo" | "amplitude" | "sub-accounts">("activity");
+
+  // Amplitude tab state
+  const [amplitudeLoaded, setAmplitudeLoaded] = useState(false);
+  const [amplitudeLoading, setAmplitudeLoading] = useState(false);
+  const [amplitudeError, setAmplitudeError] = useState<string | null>(null);
+  const [amplitudeWau, setAmplitudeWau] = useState<{ week: string; users: number }[]>([]);
+  const [amplitudeUsers30d, setAmplitudeUsers30d] = useState<number>(0);
+  const [amplitudeLastWeek, setAmplitudeLastWeek] = useState<string | null>(null);
+
+  const fetchAmplitudeData = async (amplitudeId: string) => {
+    if (amplitudeLoaded || amplitudeLoading) return;
+    setAmplitudeLoading(true);
+    setAmplitudeError(null);
+    try {
+      const res = await fetch(`/api/amplitude?amplitude_id=${encodeURIComponent(amplitudeId)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setAmplitudeError(data.error || "Failed to load Amplitude data");
+      } else {
+        setAmplitudeWau(data.wau || []);
+        setAmplitudeUsers30d(data.active_users_30d || 0);
+        setAmplitudeLastWeek(data.last_active_week || null);
+        setAmplitudeLoaded(true);
+      }
+    } catch (e: any) {
+      setAmplitudeError(e?.message || "Failed to load Amplitude data");
+    }
+    setAmplitudeLoading(false);
+  };
 
   // Mongo Data tab state
   const [mongoLoaded, setMongoLoaded] = useState(false);
@@ -462,6 +491,22 @@ export default function CustomerPage() {
             >
               Mongo Data
             </button>
+            {account.amplitude_id && (
+              <button
+                onClick={() => {
+                  setActiveTab("amplitude");
+                  fetchAmplitudeData(account.amplitude_id!);
+                }}
+                className={cn(
+                  "px-8 py-3 text-sm font-medium border-b-2 transition-colors",
+                  activeTab === "amplitude"
+                    ? "border-zinc-900 text-zinc-900"
+                    : "border-transparent text-zinc-500 hover:text-zinc-700"
+                )}
+              >
+                Product Activity
+              </button>
+            )}
             {account.plan?.toLowerCase().includes("partner") && (
               <button
                 onClick={() => {
@@ -873,6 +918,98 @@ export default function CustomerPage() {
                       </CardContent>
                     </Card>
                   )}
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === "amplitude" && (
+            <div className="space-y-4">
+              {amplitudeLoading && (
+                <div className="flex items-center justify-center py-16">
+                  <RefreshCw className="w-5 h-5 animate-spin text-zinc-400 mr-2" />
+                  <span className="text-sm text-zinc-400">Fetching from Amplitude…</span>
+                </div>
+              )}
+
+              {!amplitudeLoading && amplitudeError && (
+                <div className="flex items-center gap-2 py-12 justify-center text-red-500">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm">{amplitudeError}</span>
+                </div>
+              )}
+
+              {!amplitudeLoading && !amplitudeError && amplitudeLoaded && (
+                <>
+                  {/* Summary stats */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="pt-5 pb-5">
+                        <div className="text-xs text-zinc-400 mb-1">Active Users (30d)</div>
+                        <div className="text-3xl font-semibold text-zinc-900">{amplitudeUsers30d.toLocaleString()}</div>
+                        <div className="text-xs text-zinc-400 mt-1">unique active users</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5 pb-5">
+                        <div className="text-xs text-zinc-400 mb-1">Last Active</div>
+                        <div className="text-xl font-semibold text-zinc-900 mt-2">
+                          {amplitudeLastWeek
+                            ? new Date(amplitudeLastWeek).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                            : "—"}
+                        </div>
+                        <div className="text-xs text-zinc-400 mt-1">week starting</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5 pb-5">
+                        <div className="text-xs text-zinc-400 mb-1">Peak WAU</div>
+                        <div className="text-3xl font-semibold text-zinc-900">
+                          {amplitudeWau.length > 0 ? Math.max(...amplitudeWau.map(w => w.users)).toLocaleString() : "—"}
+                        </div>
+                        <div className="text-xs text-zinc-400 mt-1">in last 8 weeks</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* WAU bar chart */}
+                  <Card>
+                    <CardContent className="pt-6 pb-6">
+                      <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-[0.18em] mb-6">Weekly Active Users — Last 8 Weeks</h3>
+                      {amplitudeWau.length === 0 ? (
+                        <p className="text-sm text-zinc-400 text-center py-8">No activity data available.</p>
+                      ) : (() => {
+                        const maxUsers = Math.max(...amplitudeWau.map(w => w.users), 1);
+                        return (
+                          <div className="flex items-end gap-2 h-36">
+                            {amplitudeWau.map((w, i) => {
+                              const heightPct = maxUsers > 0 ? Math.max((w.users / maxUsers) * 100, w.users > 0 ? 4 : 0) : 0;
+                              const label = w.week
+                                ? new Date(w.week).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+                                : `W${i + 1}`;
+                              return (
+                                <div key={w.week || i} className="flex flex-col items-center gap-1 flex-1">
+                                  <span className="text-[10px] text-zinc-500 font-medium tabular-nums">
+                                    {w.users > 0 ? w.users.toLocaleString() : ""}
+                                  </span>
+                                  <div className="w-full flex items-end" style={{ height: "88px" }}>
+                                    <div
+                                      className={cn(
+                                        "w-full rounded-t transition-all",
+                                        i === amplitudeWau.length - 1 ? "bg-zinc-900" : "bg-zinc-300"
+                                      )}
+                                      style={{ height: `${heightPct}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] text-zinc-400 text-center leading-tight">{label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
                 </>
               )}
             </div>
