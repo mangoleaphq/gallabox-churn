@@ -27,7 +27,6 @@ services:
       PB_BASE: http://pocketbase:8090
       PB_EMAIL: ${PB_EMAIL}
       PB_PASSWORD: ${PB_PASSWORD}
-      MONGO_URI: ${MONGO_URI}
     depends_on:
       pocketbase:
         condition: service_healthy

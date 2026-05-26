@@ -10,23 +10,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Activity,
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
   ArrowUpRight,
-  Bot,
   ChevronLeft,
-  Clock,
   ExternalLink,
-  Hash,
-  Layers,
-  Mail,
-  MessageSquare,
   RefreshCw,
   Sparkles,
-  TrendingUp,
   Ticket,
-  Users,
-  Zap,
 } from "lucide-react";
 
 const PB = process.env.NEXT_PUBLIC_PB_BASE || "http://127.0.0.1:8090";
@@ -84,13 +73,6 @@ type Account = {
 
 type Note = { id: string; author: string; body: string; created: string };
 
-type SubAccount = {
-  id: string;
-  name: string;
-  status: string;
-  channel_provider: string | Record<string, unknown>;
-  created_at: string;
-};
 
 type ZohoTicket = {
   id: string;
@@ -119,12 +101,10 @@ export default function CustomerPage() {
   const [account, setAccount] = useState<Account | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [tickets, setTickets] = useState<ZohoTicket[]>([]);
-  const [subAccounts, setSubAccounts] = useState<SubAccount[]>([]);
-  const [subAccountsLoaded, setSubAccountsLoaded] = useState(false);
   const [noteBody, setNoteBody] = useState("");
   const [author, setAuthor] = useState("CSM");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"activity" | "ai" | "tickets" | "mongo" | "amplitude" | "sub-accounts">("activity");
+  const [activeTab, setActiveTab] = useState<"activity" | "ai" | "tickets" | "amplitude" | "sub-accounts">("activity");
 
   // Amplitude tab state
   const [amplitudeLoaded, setAmplitudeLoaded] = useState(false);
@@ -165,35 +145,6 @@ export default function CustomerPage() {
     setAmplitudeLoading(false);
   };
 
-  // Mongo Data tab state
-  const [mongoLoaded, setMongoLoaded] = useState(false);
-  const [mongoLoading, setMongoLoading] = useState(false);
-  const [mongoError, setMongoError] = useState<string | null>(null);
-  const [mongoBotflows, setMongoBotflows] = useState<{ total: number; useCases: Record<string, number>; names: string[] } | null>(null);
-  const [mongoBotSessions, setMongoBotSessions] = useState<{ sessions: number; completed: number } | null>(null);
-  const [mongoIg, setMongoIg] = useState<{ channels: any[]; automations: any[]; commentCount: number } | null>(null);
-  const [mongoSub, setMongoSub] = useState<{ status: string; isTrial: boolean; planId: string; expiresAt: string } | null>(null);
-
-  const fetchMongoData = async (amplitudeId: string) => {
-    if (mongoLoaded || mongoLoading) return;
-    setMongoLoading(true);
-    try {
-      const [bfRes, sessRes, igRes, subRes] = await Promise.all([
-        fetch("/api/mongo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "botflow_analysis", accountIds: [amplitudeId] }) }).then(r => r.json()),
-        fetch("/api/mongo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "botflow_sessions", accountId: amplitudeId }) }).then(r => r.json()),
-        fetch("/api/mongo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "instagram_data", accountId: amplitudeId }) }).then(r => r.json()),
-        fetch("/api/mongo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscription", accountId: amplitudeId }) }).then(r => r.json()),
-      ]);
-      setMongoBotflows(bfRes.results?.[amplitudeId] || null);
-      setMongoBotSessions({ sessions: sessRes.sessions || 0, completed: sessRes.completed || 0 });
-      setMongoIg(igRes);
-      setMongoSub(subRes.subscription || null);
-      setMongoLoaded(true);
-    } catch (e: any) {
-      setMongoError(e?.message || "Failed to load MongoDB data");
-    }
-    setMongoLoading(false);
-  };
 
   const fetchAccount = async () => {
     setLoading(true);
@@ -276,15 +227,6 @@ export default function CustomerPage() {
       .then((r) => r.json())
       .catch(() => ({ tickets: [] }));
     setTickets(res.tickets || []);
-  };
-
-  const fetchSubAccounts = async (amplitudeId: string) => {
-    if (!amplitudeId || subAccountsLoaded) return;
-    const res = await fetch(`/api/partner-accounts?partner_id=${amplitudeId}`)
-      .then((r) => r.json())
-      .catch(() => ({ sub_accounts: [] }));
-    setSubAccounts(res.sub_accounts || []);
-    setSubAccountsLoaded(true);
   };
 
   const addNote = async () => {
@@ -487,20 +429,6 @@ export default function CustomerPage() {
               Support Tickets
               {tickets.length > 0 && <span className="ml-2 text-xs bg-zinc-200 px-1.5 rounded-full">{tickets.length}</span>}
             </button>
-            <button
-              onClick={() => {
-                setActiveTab("mongo");
-                if (account.amplitude_id) fetchMongoData(account.amplitude_id);
-              }}
-              className={cn(
-                "px-8 py-3 text-sm font-medium border-b-2 transition-colors",
-                activeTab === "mongo"
-                  ? "border-zinc-900 text-zinc-900"
-                  : "border-transparent text-zinc-500 hover:text-zinc-700"
-              )}
-            >
-              Mongo Data
-            </button>
             {account.amplitude_id && (
               <button
                 onClick={() => {
@@ -515,25 +443,6 @@ export default function CustomerPage() {
                 )}
               >
                 Product Activity
-              </button>
-            )}
-            {account.plan?.toLowerCase().includes("partner") && (
-              <button
-                onClick={() => {
-                  setActiveTab("sub-accounts");
-                  if (account.amplitude_id) fetchSubAccounts(account.amplitude_id);
-                }}
-                className={cn(
-                  "px-8 py-3 text-sm font-medium border-b-2 transition-colors",
-                  activeTab === "sub-accounts"
-                    ? "border-violet-600 text-violet-700"
-                    : "border-transparent text-zinc-500 hover:text-zinc-700"
-                )}
-              >
-                Sub-Accounts
-                {subAccountsLoaded && (
-                  <span className="ml-2 text-xs bg-violet-100 text-violet-700 px-1.5 rounded-full">{subAccounts.length}</span>
-                )}
               </button>
             )}
           </div>
@@ -799,140 +708,6 @@ export default function CustomerPage() {
             </Card>
           )}
 
-          {activeTab === "mongo" && (
-            <div className="space-y-4">
-              {mongoLoading && (
-                <div className="flex items-center justify-center py-16">
-                  <RefreshCw className="w-5 h-5 animate-spin text-zinc-400 mr-2" />
-                  <span className="text-sm text-zinc-400">Fetching from MongoDB…</span>
-                </div>
-              )}
-
-              {!mongoLoading && mongoError && (
-                <div className="flex items-center gap-2 py-12 justify-center text-red-500">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span className="text-sm">{mongoError}</span>
-                </div>
-              )}
-
-              {!mongoLoading && !mongoError && mongoLoaded && (
-                <>
-                  {/* Subscription */}
-                  {mongoSub && (
-                    <Card>
-                      <CardContent className="pt-6">
-                        <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-[0.18em] mb-4">Subscription</h3>
-                        <div className="space-y-2">
-                          {[
-                            ["Status", mongoSub.status || "—"],
-                            ["Plan ID", mongoSub.planId || "—"],
-                            ["Trial", mongoSub.isTrial ? "Yes" : "No"],
-                            ["Expires At", mongoSub.expiresAt ? new Date(mongoSub.expiresAt).toLocaleDateString("en-IN") : "—"],
-                          ].map(([label, value]) => (
-                            <div key={label} className="flex justify-between text-sm">
-                              <span className="text-zinc-500">{label}</span>
-                              <span className="font-medium text-zinc-900">{value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Botflows */}
-                  <Card>
-                    <CardContent className="pt-6">
-                      <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-[0.18em] mb-4">Botflows</h3>
-                      {!mongoBotflows || mongoBotflows.total === 0 ? (
-                        <p className="text-sm text-zinc-400">No botflows found.</p>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className="bg-indigo-50 rounded-lg p-4 text-center">
-                              <p className="text-3xl font-bold text-indigo-600">{mongoBotflows.total}</p>
-                              <p className="text-xs text-indigo-500 mt-1">Total Flows</p>
-                            </div>
-                            <div className="bg-emerald-50 rounded-lg p-4 text-center">
-                              <p className="text-3xl font-bold text-emerald-600">{mongoBotSessions?.sessions || 0}</p>
-                              <p className="text-xs text-emerald-500 mt-1">Total Sessions</p>
-                            </div>
-                            <div className="bg-amber-50 rounded-lg p-4 text-center">
-                              <p className="text-3xl font-bold text-amber-600">{mongoBotSessions?.completed || 0}</p>
-                              <p className="text-xs text-amber-500 mt-1">Completed</p>
-                            </div>
-                          </div>
-
-                          {Object.keys(mongoBotflows.useCases).length > 0 && (
-                            <div>
-                              <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wide">Use Cases</p>
-                              <div className="space-y-1.5">
-                                {Object.entries(mongoBotflows.useCases)
-                                  .sort(([, a], [, b]) => b - a)
-                                  .map(([uc, count]) => (
-                                    <div key={uc} className="flex justify-between text-sm bg-zinc-50 rounded px-3 py-2">
-                                      <span className="text-zinc-700">{uc}</span>
-                                      <span className="font-medium text-zinc-900">{count} flow{count !== 1 ? "s" : ""}</span>
-                                    </div>
-                                  ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {mongoBotflows.names.length > 0 && (
-                            <div>
-                              <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wide">Flow Names</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {mongoBotflows.names.map((name, i) => (
-                                  <span key={i} className="bg-zinc-100 text-zinc-700 rounded-full px-2.5 py-1 text-xs font-mono">{name}</span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Instagram */}
-                  {mongoIg && mongoIg.channels.length > 0 && (
-                    <Card>
-                      <CardContent className="pt-6">
-                        <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-[0.18em] mb-4">Instagram</h3>
-                        <div className="space-y-3">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-zinc-500">IG Channels</span>
-                            <span className="font-medium text-zinc-900">{mongoIg.channels.length}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-zinc-500">Comment Automations</span>
-                            <span className="font-medium text-zinc-900">{mongoIg.automations.length}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-zinc-500">Total Comments</span>
-                            <span className="font-medium text-zinc-900">{mongoIg.commentCount.toLocaleString()}</span>
-                          </div>
-                          {mongoIg.automations.length > 0 && (
-                            <div className="pt-2">
-                              <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wide">Automations</p>
-                              <div className="space-y-1.5">
-                                {mongoIg.automations.map((a: any, i: number) => (
-                                  <div key={i} className="flex justify-between text-sm bg-zinc-50 rounded px-3 py-2">
-                                    <span className="text-zinc-700">{a.name || "Unnamed"}</span>
-                                    <span className="text-xs text-zinc-400">{a.status}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
           {activeTab === "amplitude" && (
             <div className="space-y-4">
               {amplitudeLoading && (
@@ -1068,68 +843,6 @@ export default function CustomerPage() {
             </div>
           )}
 
-          {activeTab === "sub-accounts" && (
-            <Card>
-              <CardContent className="pt-6">
-                <h3 className="flex items-center gap-2 text-xs font-medium text-violet-600 uppercase tracking-[0.18em] mb-5">
-                  <Users className="w-4 h-4" />
-                  Sub-Accounts managed by this partner
-                  {subAccountsLoaded && (
-                    <span className="ml-2 text-xs bg-violet-100 px-2 py-px rounded text-violet-700">{subAccounts.length}</span>
-                  )}
-                </h3>
-
-                {!subAccountsLoaded ? (
-                  <div className="flex items-center justify-center py-12">
-                    <RefreshCw className="w-5 h-5 animate-spin text-zinc-400" />
-                  </div>
-                ) : subAccounts.length === 0 ? (
-                  <p className="text-zinc-400 py-12 text-center">No sub-accounts found for this partner.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-200 text-left text-zinc-400 text-xs uppercase tracking-wide">
-                          <th className="pb-3 pr-4">Account Name</th>
-                          <th className="pb-3 pr-4">Status</th>
-                          <th className="pb-3 pr-4">Channel Provider</th>
-                          <th className="pb-3">Created</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {subAccounts.map((sub) => (
-                          <tr key={sub.id} className="border-b border-zinc-100 hover:bg-zinc-50">
-                            <td className="py-3 pr-4 font-medium text-zinc-900">{sub.name}</td>
-                            <td className="py-3 pr-4">
-                              <span className={cn(
-                                "inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-                                sub.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                                sub.status === "disconnected" ? "bg-zinc-100 text-zinc-500" :
-                                sub.status === "suspended" ? "bg-red-100 text-red-600" :
-                                "bg-zinc-100 text-zinc-500"
-                              )}>
-                                {sub.status}
-                              </span>
-                            </td>
-                            <td className="py-3 pr-4 text-zinc-500">
-                              {!sub.channel_provider
-                                ? "—"
-                                : typeof sub.channel_provider === "string"
-                                ? sub.channel_provider || "—"
-                                : Object.keys(sub.channel_provider as Record<string, unknown>).join(", ") || "—"}
-                            </td>
-                            <td className="py-3 text-zinc-400 text-xs">
-                              {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
       </main>
     </div>
