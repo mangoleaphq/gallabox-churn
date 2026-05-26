@@ -135,6 +135,8 @@ export default function CustomerPage() {
   const [amplitudeMaxDau, setAmplitudeMaxDau] = useState<number>(0);
   const [amplitudeActiveDays, setAmplitudeActiveDays] = useState<number>(0);
   const [amplitudeLastDate, setAmplitudeLastDate] = useState<string | null>(null);
+  const [amplitudeSessions, setAmplitudeSessions] = useState<number>(0);
+  const [amplitudeFeatures, setAmplitudeFeatures] = useState<{ name: string; count: number; used: boolean }[]>([]);
   const [amplitudeIsFiltered, setAmplitudeIsFiltered] = useState(false);
 
   const fetchAmplitudeData = async (amplitudeId: string) => {
@@ -152,6 +154,8 @@ export default function CustomerPage() {
         setAmplitudeMaxDau(data.max_dau || 0);
         setAmplitudeActiveDays(data.active_days_30d || 0);
         setAmplitudeLastDate(data.last_active_date || null);
+        setAmplitudeSessions(data.sessions_30d || 0);
+        setAmplitudeFeatures(data.features || []);
         setAmplitudeIsFiltered(data.is_filtered || false);
         setAmplitudeLoaded(true);
       }
@@ -954,12 +958,19 @@ export default function CustomerPage() {
                     </div>
                   )}
                   {/* Summary stats */}
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-4 gap-4">
                     <Card>
                       <CardContent className="pt-5 pb-5">
                         <div className="text-xs text-zinc-400 mb-1">Peak DAU (30d)</div>
                         <div className="text-3xl font-semibold text-zinc-900">{amplitudeMaxDau.toLocaleString()}</div>
                         <div className="text-xs text-zinc-400 mt-1">max daily active users</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5 pb-5">
+                        <div className="text-xs text-zinc-400 mb-1">Sessions (30d)</div>
+                        <div className="text-3xl font-semibold text-zinc-900">{amplitudeSessions.toLocaleString()}</div>
+                        <div className="text-xs text-zinc-400 mt-1">total sessions</div>
                       </CardContent>
                     </Card>
                     <Card>
@@ -981,6 +992,35 @@ export default function CustomerPage() {
                       </CardContent>
                     </Card>
                   </div>
+
+                  {/* Feature adoption */}
+                  {amplitudeFeatures.length > 0 && (
+                    <Card>
+                      <CardContent className="pt-6 pb-6">
+                        <div className="flex items-center justify-between mb-5">
+                          <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-[0.18em]">Feature Adoption — Last 30 Days</h3>
+                          <span className="text-xs text-zinc-400">
+                            {amplitudeFeatures.filter(f => f.used).length}/{amplitudeFeatures.length} features used
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[...amplitudeFeatures].sort((a, b) => b.count - a.count).map(f => (
+                            <div key={f.name} className={cn(
+                              "rounded-xl px-4 py-3 flex items-center justify-between",
+                              f.used ? "bg-emerald-50 border border-emerald-200" : "bg-zinc-50 border border-zinc-200"
+                            )}>
+                              <span className={cn("text-sm font-medium", f.used ? "text-emerald-800" : "text-zinc-400")}>
+                                {f.name}
+                              </span>
+                              <span className={cn("text-sm font-semibold tabular-nums", f.used ? "text-emerald-700" : "text-zinc-300")}>
+                                {f.used ? f.count.toLocaleString() : "—"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Daily active users bar chart */}
                   <Card>
