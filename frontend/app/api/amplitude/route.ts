@@ -51,24 +51,30 @@ export async function GET(req: NextRequest) {
     return p;
   }
 
-  try {
-    const [dauResp, sessionResp, ...featureResps] = await Promise.all([
-      fetch(`${BASE}/events/segmentation?${segParams("_active", "uniques")}`, { headers }),
-      fetch(`${BASE}/events/segmentation?${segParams("session_start", "totals")}`, { headers }),
-      ...FEATURES.map(f => fetch(`${BASE}/events/segmentation?${segParams(f.event, "totals")}`, { headers })),
-    ]);
+  async function fetchSegmentation(eventType: string, metric: string) {
+    const resp = await fetch(`${BASE}/events/segmentation?${segParams(eventType, metric)}`, { headers });
+    const body = await resp.json();
+    if (!resp.ok) throw new Error(`${resp.status}:${JSON.stringify(body)}`);
+    return body;
+  }
 
-    const allResps = [dauResp, sessionResp, ...featureResps];
-    const firstBad = allResps.find(r => !r.ok);
-    if (firstBad) {
-      const errBody = await firstBad.json();
-      return NextResponse.json(
-        { error: `Amplitude API error: ${firstBad.status}`, detail: JSON.stringify(errBody) },
-        { status: 502 }
-      );
+  async function batchFetch<T>(tasks: (() => Promise<T>)[], size: number): Promise<T[]> {
+    const results: T[] = [];
+    for (let i = 0; i < tasks.length; i += size) {
+      const batch = await Promise.all(tasks.slice(i, i + size).map(t => t()));
+      results.push(...batch);
     }
+    return results;
+  }
 
-    const [dauData, sessionData, ...featureData] = await Promise.all(allResps.map(r => r.json()));
+  try {
+    const allTasks = [
+      () => fetchSegmentation("_active", "uniques"),
+      () => fetchSegmentation("session_start", "totals"),
+      ...FEATURES.map(f => () => fetchSegmentation(f.event, "totals")),
+    ];
+
+    const [dauData, sessionData, ...featureData] = await batchFetch(allTasks, 3);
 
     const xValues: string[] = dauData.data?.xValues || [];
     const dauSeries: number[] = dauData.data?.series?.[0] || [];
@@ -100,6 +106,11 @@ export async function GET(req: NextRequest) {
       is_filtered: !!accountProp,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: "Failed to fetch Amplitude data", detail: err?.message }, { status: 500 });
+    const msg = err?.message || "Failed to fetch Amplitude data";
+    const isAmpError = msg.startsWith("4") || msg.startsWith("5");
+    return NextResponse.json(
+      { error: isAmpError ? `Amplitude API error: ${msg.split(":")[0]}` : "Failed to fetch Amplitude data", detail: msg },
+      { status: 500 }
+    );
   }
 }
