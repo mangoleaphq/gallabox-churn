@@ -130,9 +130,12 @@ export default function CustomerPage() {
   const [amplitudeLoaded, setAmplitudeLoaded] = useState(false);
   const [amplitudeLoading, setAmplitudeLoading] = useState(false);
   const [amplitudeError, setAmplitudeError] = useState<string | null>(null);
+  const [amplitudeDaily, setAmplitudeDaily] = useState<{ date: string; users: number }[]>([]);
   const [amplitudeWau, setAmplitudeWau] = useState<{ week: string; users: number }[]>([]);
-  const [amplitudeUsers30d, setAmplitudeUsers30d] = useState<number>(0);
-  const [amplitudeLastWeek, setAmplitudeLastWeek] = useState<string | null>(null);
+  const [amplitudeMaxDau, setAmplitudeMaxDau] = useState<number>(0);
+  const [amplitudeActiveDays, setAmplitudeActiveDays] = useState<number>(0);
+  const [amplitudeLastDate, setAmplitudeLastDate] = useState<string | null>(null);
+  const [amplitudeIsFiltered, setAmplitudeIsFiltered] = useState(false);
 
   const fetchAmplitudeData = async (amplitudeId: string) => {
     if (amplitudeLoaded || amplitudeLoading) return;
@@ -142,11 +145,14 @@ export default function CustomerPage() {
       const res = await fetch(`/api/amplitude?amplitude_id=${encodeURIComponent(amplitudeId)}`);
       const data = await res.json();
       if (!res.ok) {
-        setAmplitudeError(data.error || "Failed to load Amplitude data");
+        setAmplitudeError(data.detail ? `${data.error} — ${data.detail}` : (data.error || "Failed to load Amplitude data"));
       } else {
+        setAmplitudeDaily(data.daily || []);
         setAmplitudeWau(data.wau || []);
-        setAmplitudeUsers30d(data.active_users_30d || 0);
-        setAmplitudeLastWeek(data.last_active_week || null);
+        setAmplitudeMaxDau(data.max_dau || 0);
+        setAmplitudeActiveDays(data.active_days_30d || 0);
+        setAmplitudeLastDate(data.last_active_date || null);
+        setAmplitudeIsFiltered(data.is_filtered || false);
         setAmplitudeLoaded(true);
       }
     } catch (e: any) {
@@ -941,73 +947,80 @@ export default function CustomerPage() {
 
               {!amplitudeLoading && !amplitudeError && amplitudeLoaded && (
                 <>
+                  {!amplitudeIsFiltered && (
+                    <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      Showing project-wide data — set <code className="font-mono text-xs bg-amber-100 px-1 rounded">AMPLITUDE_ACCOUNT_PROP</code> in <code className="font-mono text-xs bg-amber-100 px-1 rounded">.env.local</code> to filter by account
+                    </div>
+                  )}
                   {/* Summary stats */}
                   <div className="grid grid-cols-3 gap-4">
                     <Card>
                       <CardContent className="pt-5 pb-5">
-                        <div className="text-xs text-zinc-400 mb-1">Active Users (30d)</div>
-                        <div className="text-3xl font-semibold text-zinc-900">{amplitudeUsers30d.toLocaleString()}</div>
-                        <div className="text-xs text-zinc-400 mt-1">unique active users</div>
+                        <div className="text-xs text-zinc-400 mb-1">Peak DAU (30d)</div>
+                        <div className="text-3xl font-semibold text-zinc-900">{amplitudeMaxDau.toLocaleString()}</div>
+                        <div className="text-xs text-zinc-400 mt-1">max daily active users</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5 pb-5">
+                        <div className="text-xs text-zinc-400 mb-1">Active Days (30d)</div>
+                        <div className="text-3xl font-semibold text-zinc-900">{amplitudeActiveDays}</div>
+                        <div className="text-xs text-zinc-400 mt-1">days with any activity</div>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="pt-5 pb-5">
                         <div className="text-xs text-zinc-400 mb-1">Last Active</div>
                         <div className="text-xl font-semibold text-zinc-900 mt-2">
-                          {amplitudeLastWeek
-                            ? new Date(amplitudeLastWeek).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                          {amplitudeLastDate
+                            ? new Date(amplitudeLastDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
                             : "—"}
                         </div>
-                        <div className="text-xs text-zinc-400 mt-1">week starting</div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-5 pb-5">
-                        <div className="text-xs text-zinc-400 mb-1">Peak WAU</div>
-                        <div className="text-3xl font-semibold text-zinc-900">
-                          {amplitudeWau.length > 0 ? Math.max(...amplitudeWau.map(w => w.users)).toLocaleString() : "—"}
-                        </div>
-                        <div className="text-xs text-zinc-400 mt-1">in last 8 weeks</div>
+                        <div className="text-xs text-zinc-400 mt-1">last day with activity</div>
                       </CardContent>
                     </Card>
                   </div>
 
-                  {/* WAU bar chart */}
+                  {/* Daily active users bar chart */}
                   <Card>
                     <CardContent className="pt-6 pb-6">
-                      <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-[0.18em] mb-6">Weekly Active Users — Last 8 Weeks</h3>
-                      {amplitudeWau.length === 0 ? (
+                      <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-[0.18em] mb-6">Daily Active Users — Last 30 Days</h3>
+                      {amplitudeDaily.length === 0 ? (
                         <p className="text-sm text-zinc-400 text-center py-8">No activity data available.</p>
                       ) : (() => {
-                        const maxUsers = Math.max(...amplitudeWau.map(w => w.users), 1);
+                        const maxUsers = Math.max(...amplitudeDaily.map(d => d.users), 1);
                         return (
-                          <div className="flex items-end gap-2 h-36">
-                            {amplitudeWau.map((w, i) => {
-                              const heightPct = maxUsers > 0 ? Math.max((w.users / maxUsers) * 100, w.users > 0 ? 4 : 0) : 0;
-                              const label = w.week
-                                ? new Date(w.week).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-                                : `W${i + 1}`;
+                          <div className="flex items-end gap-0.5 h-36">
+                            {amplitudeDaily.map((d, i) => {
+                              const heightPct = d.users > 0 ? Math.max((d.users / maxUsers) * 100, 3) : 0;
+                              const isWeekEnd = i > 0 && (i % 7 === 0);
                               return (
-                                <div key={w.week || i} className="flex flex-col items-center gap-1 flex-1">
-                                  <span className="text-[10px] text-zinc-500 font-medium tabular-nums">
-                                    {w.users > 0 ? w.users.toLocaleString() : ""}
-                                  </span>
+                                <div key={d.date || i} title={`${d.date}: ${d.users} users`}
+                                  className={cn("flex flex-col items-center flex-1", isWeekEnd && "ml-1")}>
                                   <div className="w-full flex items-end" style={{ height: "88px" }}>
                                     <div
                                       className={cn(
-                                        "w-full rounded-t transition-all",
-                                        i === amplitudeWau.length - 1 ? "bg-zinc-900" : "bg-zinc-300"
+                                        "w-full rounded-sm transition-all",
+                                        d.users > 0 ? "bg-zinc-800" : "bg-zinc-100"
                                       )}
                                       style={{ height: `${heightPct}%` }}
                                     />
                                   </div>
-                                  <span className="text-[9px] text-zinc-400 text-center leading-tight">{label}</span>
                                 </div>
                               );
                             })}
                           </div>
                         );
                       })()}
+                      {/* Week labels */}
+                      <div className="flex gap-0.5 mt-2">
+                        {amplitudeWau.map((w, i) => (
+                          <div key={w.week || i} className="flex-1 text-[9px] text-zinc-400 text-center leading-tight">
+                            {w.week ? new Date(w.week).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : `W${i + 1}`}
+                          </div>
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
                 </>

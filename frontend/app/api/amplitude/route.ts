@@ -12,18 +12,6 @@ function yyyymmdd(d: Date) {
   return d.toISOString().slice(0, 10).replace(/-/g, "");
 }
 
-function weeksAgo(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n * 7);
-  return d;
-}
-
-function daysAgo(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d;
-}
-
 export async function GET(req: NextRequest) {
   const amplitudeId = req.nextUrl.searchParams.get("amplitude_id");
   if (!amplitudeId) {
@@ -34,63 +22,67 @@ export async function GET(req: NextRequest) {
   }
 
   const today = new Date();
-  const segment = JSON.stringify([{
-    filters: [{
-      subprop_type: "user",
-      subprop_key: "accountId",
-      subprop_op: "is",
-      subprop_value: [amplitudeId],
-    }],
-  }]);
-  const headers = { Authorization: auth() };
+  const start = new Date();
+  start.setDate(today.getDate() - 29); // 30 days inclusive
 
-  // WAU: weekly active users over the last 8 weeks
-  const wauParams = new URLSearchParams({
+  const accountProp = process.env.AMPLITUDE_ACCOUNT_PROP;
+  const segment = accountProp
+    ? JSON.stringify([{
+        name: "Segment 1",
+        filters: [{
+          subprop_type: "user",
+          subprop_key: accountProp,
+          subprop_op: "is",
+          subprop_value: [amplitudeId],
+        }],
+      }])
+    : undefined;
+
+  const params = new URLSearchParams({
     e: JSON.stringify({ event_type: "_active" }),
     m: "uniques",
-    start: yyyymmdd(weeksAgo(8)),
+    start: yyyymmdd(start),
     end: yyyymmdd(today),
-    i: "7",
-    s: segment,
+    i: "1",
   });
+  if (segment) params.set("s", segment);
 
-  // Active users last 30 days (single monthly bucket)
-  const mauParams = new URLSearchParams({
-    e: JSON.stringify({ event_type: "_active" }),
-    m: "uniques",
-    start: yyyymmdd(daysAgo(30)),
-    end: yyyymmdd(today),
-    i: "30",
-    s: segment,
-  });
+  const url = `${BASE}/events/segmentation?${params}`;
 
   try {
-    const [wauResp, mauResp] = await Promise.all([
-      fetch(`${BASE}/events/segmentation?${wauParams}`, { headers }),
-      fetch(`${BASE}/events/segmentation?${mauParams}`, { headers }),
-    ]);
+    const resp = await fetch(url, { headers: { Authorization: auth() } });
+    const body = await resp.json();
 
-    if (!wauResp.ok || !mauResp.ok) {
-      const errText = await wauResp.text();
-      return NextResponse.json({ error: `Amplitude API error: ${wauResp.status}`, detail: errText }, { status: 502 });
+    if (!resp.ok) {
+      return NextResponse.json(
+        { error: `Amplitude API error: ${resp.status}`, detail: JSON.stringify(body) },
+        { status: 502 }
+      );
     }
 
-    const [wauData, mauData] = await Promise.all([wauResp.json(), mauResp.json()]);
+    const xValues: string[] = body.data?.xValues || [];
+    const series: number[] = body.data?.series?.[0] || [];
 
-    const wau: { week: string; users: number }[] = (wauData.data?.xValues || []).map(
-      (week: string, i: number) => ({
-        week,
-        users: wauData.data?.series?.[0]?.[i] ?? 0,
-      })
-    );
+    const daily = xValues.map((date, i) => ({ date, users: series[i] ?? 0 }));
+    const lastActive = [...daily].reverse().find((d) => d.users > 0) ?? null;
+    const maxDau = daily.length > 0 ? Math.max(...daily.map((d) => d.users)) : 0;
+    const activeDays = daily.filter((d) => d.users > 0).length;
 
-    const lastActiveWeek = [...wau].reverse().find((w) => w.users > 0) ?? null;
-    const activeUsers30d: number = mauData.data?.series?.[0]?.[0] ?? 0;
+    // Group into weeks (last 4 complete weeks + partial current week)
+    const wau: { week: string; users: number }[] = [];
+    for (let i = 0; i < daily.length; i += 7) {
+      const slice = daily.slice(i, i + 7);
+      const weekMax = Math.max(...slice.map((d) => d.users));
+      wau.push({ week: slice[0]?.date ?? "", users: weekMax });
+    }
 
     return NextResponse.json({
+      daily,
       wau,
-      active_users_30d: activeUsers30d,
-      last_active_week: lastActiveWeek?.week ?? null,
+      max_dau: maxDau,
+      active_days_30d: activeDays,
+      last_active_date: lastActive?.date ?? null,
+      is_filtered: !!accountProp,
     });
   } catch (err: any) {
     return NextResponse.json({ error: "Failed to fetch Amplitude data", detail: err?.message }, { status: 500 });
