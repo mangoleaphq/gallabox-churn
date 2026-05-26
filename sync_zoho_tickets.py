@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Gallabox Churn — Zoho Desk Ticket Sync
+Churn Analysis — Zoho Desk Ticket Sync
 Fetches all tickets from Zoho Desk, matches them to active accounts by email,
 and upserts into PocketBase zoho_tickets collection.
 
@@ -187,7 +187,7 @@ def fetch_all_tickets(max_tickets: int) -> list:
 
 # ── Main Sync ─────────────────────────────────────────────────────────────────
 def main():
-    print(f"\nGallabox Churn Zoho Desk Sync — {'QUICK' if QUICK_MODE else 'FULL'} mode")
+    print(f"\nChurn Analysis Zoho Desk Sync — {'QUICK' if QUICK_MODE else 'FULL'} mode")
     print("=" * 50)
 
     # 1. Load active accounts

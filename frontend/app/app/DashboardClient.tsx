@@ -312,7 +312,7 @@ export default function DashboardClient() {
         <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/90 backdrop-blur-sm">
           <div className="px-6 py-4 flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-xl font-semibold text-zinc-900">Gallabox Churn</h1>
+              <h1 className="text-xl font-semibold text-zinc-900">Churn Analysis</h1>
               <p className="text-sm text-zinc-500">Accounts ranked by churn risk and upsell signals</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => { fetchStats(); fetchAccounts(page, search, activeTab, sortKey, sortDir, kamFilter, industryFilter); }}>

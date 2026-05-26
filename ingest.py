@@ -1,7 +1,7 @@
 
 #!/usr/bin/env python3
 """
-Gallabox Churn Ingestion Pipeline
+Churn Analysis Ingestion Pipeline
 Pulls data from Chargebee + Amplitude -> PocketBase
 """
 
@@ -298,7 +298,7 @@ def write_churn_score(token, pb_account_id, scores):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    print("\n=== Gallabox Churn Ingestion Pipeline ===\n")
+    print("\n=== Churn Analysis Ingestion Pipeline ===\n")
 
     # Auth
     print("Authenticating with PocketBase...")

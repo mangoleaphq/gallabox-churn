@@ -1,6 +1,6 @@
-# Gallabox Churn Frontend
+# Churn Analysis Frontend
 
-Minimal local frontend shell for Gallabox Churn.
+Minimal local frontend shell for Churn Analysis.
 
 ## Run locally
 
@@ -14,5 +14,5 @@ Open http://localhost:3000
 ## Current status
 
 - Homepage removed
-- Root route replaced with Gallabox Churn app shell
+- Root route replaced with Churn Analysis app shell
 - Ready for dashboard/app implementation

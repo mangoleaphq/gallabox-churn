@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Gallabox Churn — Zoho CRM Full Sync
+Churn Analysis — Zoho CRM Full Sync
 Syncs Lead Owner (from Accounts module) + KAM Owner (from KAM module)
 into PocketBase accounts table.
 
@@ -86,7 +86,7 @@ def fetch_crm_module(module, fields):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    print(f"\nGallabox Churn — Zoho CRM Sync {'(DRY RUN)' if DRY else ''}")
+    print(f"\nChurn Analysis — Zoho CRM Sync {'(DRY RUN)' if DRY else ''}")
     print("=" * 55)
 
     # Load PB accounts

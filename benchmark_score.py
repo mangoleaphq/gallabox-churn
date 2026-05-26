@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Gallabox Churn scoring benchmark — evaluates compute_scores_v3 against canonical test cases.
+Churn Analysis scoring benchmark — evaluates compute_scores_v3 against canonical test cases.
 
 Each test case is a hand-crafted scenario with expected outcomes derived from
 SCORING.md. Score = fraction of checks that pass (1.0 = all pass, 0.0 = all fail).

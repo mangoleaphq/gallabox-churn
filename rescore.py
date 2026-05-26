@@ -1,7 +1,7 @@
 
 #!/usr/bin/env python3
 """
-Gallabox Churn Re-scorer — fetches Amplitude data and updates churn scores in PocketBase
+Churn Analysis Re-scorer — fetches Amplitude data and updates churn scores in PocketBase
 """
 import json, urllib.request, urllib.parse, base64, subprocess, time, os, sys
 from datetime import datetime, timedelta
@@ -117,7 +117,7 @@ def compute_scores(mrr, status, plan, sessions):
             "sessions_7d": current, "wow_delta": wow_delta}
 
 def main():
-    print("\n=== Gallabox Churn Re-scorer ===\n")
+    print("\n=== Churn Analysis Re-scorer ===\n")
     token = pb_auth()
     print("PocketBase auth OK")
 

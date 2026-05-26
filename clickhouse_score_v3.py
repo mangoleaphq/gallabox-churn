@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Gallabox Churn v3 — 4-Source Scoring Model
+Churn Analysis v3 — 4-Source Scoring Model
 ════════════════════════════════════
 Sources:
   1. Chargebee  — billing status, MRR, plan tier
@@ -851,7 +851,7 @@ def compute_scores_v3(billing, usage, tickets, kam):
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
     print("=" * 60)
-    print("Gallabox Churn v3 — 4-Source Scoring")
+    print("Churn Analysis v3 — 4-Source Scoring")
     print("  Sources: Chargebee + ClickHouse + Zoho Desk + Zoho CRM")
     print("=" * 60)
 

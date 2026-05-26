@@ -1,5 +1,5 @@
-# Gallabox Churn
+# Churn Analysis
 
-Local application shell for Gallabox Churn.
+Local application shell for Churn Analysis.
 
 Status: homepage removed from the frontend root route.

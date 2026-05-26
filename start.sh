@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gallabox Churn local dev startup
+# Churn Analysis local dev startup
 #
 # Starts PocketBase + runs a quick background sync + starts Next.js.
 # Ctrl-C stops everything cleanly.

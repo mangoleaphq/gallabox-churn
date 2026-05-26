@@ -1,7 +1,7 @@
 
 #!/usr/bin/env python3
 """
-Gallabox Churn Fix + Rescore
+Churn Analysis Fix + Rescore
 1. Delete all duplicate churn_score records (keep only latest per account)
 2. Re-fetch subscriptions properly and update account status/plan/mrr
 3. Recompute scores with correct billing signals
@@ -269,7 +269,7 @@ def update_and_score(token, subs, amp):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    print("\n=== Gallabox Churn Fix + Rescore ===\n")
+    print("\n=== Churn Analysis Fix + Rescore ===\n")
     token = pb_auth()
     print("PocketBase auth OK\n")
 

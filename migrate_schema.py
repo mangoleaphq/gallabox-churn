@@ -50,7 +50,7 @@ def update_collection(name, data, token):
         return None, e.read().decode()
 
 def main():
-    print("Migrating PocketBase schema for Gallabox Churn v2...\n")
+    print("Migrating PocketBase schema for Churn Analysis v2...\n")
     
     token = pb_auth()
     print("✓ Authenticated\n")

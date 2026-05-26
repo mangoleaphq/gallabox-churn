@@ -203,7 +203,7 @@ def compute_scores(mrr, status, plan, sessions, conv_7d=None, conv_wow=None):
     }
 
 def main():
-    print("=== Gallabox Churn Scorer ===", flush=True)
+    print("=== Churn Analysis Scorer ===", flush=True)
     token = pb_auth()
     print("Auth OK", flush=True)
 

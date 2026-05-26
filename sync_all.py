@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Gallabox Churn full-sync pipeline.
+Churn Analysis full-sync pipeline.
 
 Runs all 4 data-source sync steps in the correct order, then scores all accounts.
 
@@ -65,7 +65,7 @@ def run_step(name, cmd):
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log(f"=== Gallabox Churn Sync started — {started} ===")
+    log(f"=== Churn Analysis Sync started — {started} ===")
     if QUICK:        log("  mode: --quick (200 tickets)")
     if SKIP_TICKETS: log("  skipping: sync_zoho_tickets")
     if SKIP_CRM:     log("  skipping: sync_zoho_crm")
@@ -115,7 +115,7 @@ def main():
 
     # Summary
     total = sum(t for _, _, t in results)
-    log(f"\n=== Gallabox Churn Sync complete — {datetime.now().strftime('%H:%M:%S')} ===")
+    log(f"\n=== Churn Analysis Sync complete — {datetime.now().strftime('%H:%M:%S')} ===")
     for name, ok, t in results:
         if ok is None:
             log(f"  {name:<18} –  (skipped)")

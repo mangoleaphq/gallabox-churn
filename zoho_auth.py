@@ -1,5 +1,5 @@
 """
-Zoho Auth helper — shared by all Gallabox Churn sync scripts.
+Zoho Auth helper — shared by all Churn Analysis sync scripts.
 Credentials are read from env vars (ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN).
 The access token is cached in .zoho_token.json to avoid redundant refresh calls.
 """

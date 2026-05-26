@@ -1,5 +1,5 @@
 """
-Zoho Desk Integration for Gallabox Churn
+Zoho Desk Integration for Churn Analysis
 ------------------------------------
 Fetches support tickets and extracts churn signals per account/customer.
 Auto-refreshes OAuth token using stored refresh token.
@@ -194,7 +194,7 @@ def extract_churn_signals(ticket: dict) -> dict:
 
 def get_churn_signals_for_email(email: str, all_tickets: list = None) -> dict:
     """
-    Core Gallabox Churn function: given a customer email,
+    Core Churn Analysis function: given a customer email,
     returns a structured churn risk profile from their support history.
     """
     tickets = search_tickets_by_email(email, all_tickets)
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "batch":
         max_t = int(sys.argv[2]) if len(sys.argv) > 2 else 500
         report = batch_churn_report(max_t)
-        print(f"\nGallabox Churn — Top {len(report)} at-risk accounts from Zoho Desk\n")
+        print(f"\nChurn Analysis — Top {len(report)} at-risk accounts from Zoho Desk\n")
         print(f"{'#':<4} {'Email':<35} {'Business':<25} {'Churn Tickets':<15} {'Risk Score'}")
         print("-" * 95)
         for i, r in enumerate(report[:20], 1):
@@ -302,7 +302,7 @@ if __name__ == "__main__":
 
     elif len(sys.argv) > 1:
         email = sys.argv[1]
-        print(f"\nGallabox Churn — Zoho Desk signals for: {email}\n")
+        print(f"\nChurn Analysis — Zoho Desk signals for: {email}\n")
         result = get_churn_signals_for_email(email)
         print(json.dumps(result, indent=2))
 

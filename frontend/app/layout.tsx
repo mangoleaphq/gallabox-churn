@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gallabox Churn",
-  description: "Gallabox Churn local application shell.",
+  title: "Churn Analysis",
+  description: "Churn Analysis — Gallabox internal CSM dashboard.",
   icons: {
     icon: "/favicon.svg",
   },
