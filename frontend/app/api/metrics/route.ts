@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Now fill in pct fields
-    for (const r of data) {
+    for (const r of data as any[]) {
       const t = r.medium_total || 1;
       r.broadcast_pct   = Math.round((r.broadcast   || 0) / t * 100);
       r.bot_pct         = Math.round((r.bot         || 0) / t * 100);

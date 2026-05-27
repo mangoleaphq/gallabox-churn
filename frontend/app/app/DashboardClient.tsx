@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 
-const PB = process.env.NEXT_PUBLIC_PB_BASE || "http://127.0.0.1:8090";
+const PB = "/api/pb";
 
 type Account = {
   id: string;
@@ -140,7 +140,7 @@ export default function DashboardClient() {
     const finalSort  = tab === "upsell" ? "-upsell_score" : `${sortPrefix}${sortField}`;
 
     const res = await fetch(
-      `${PB}/api/collections/churn_scores/records?perPage=50&page=${p}&sort=${finalSort}&expand=account_id&filter=${encodeURIComponent(f)}`
+      `${PB}/collections/churn_scores/records?perPage=50&page=${p}&sort=${finalSort}&expand=account_id&filter=${encodeURIComponent(f)}`
     ).then(r => {
       if (!r.ok) throw new Error(`PocketBase ${r.status}`);
       return r.json();
@@ -186,17 +186,17 @@ export default function DashboardClient() {
   const fetchStats = useCallback(async () => {
     const BASE = 'account_id.status="active"||account_id.status="non_renewing"';
     const [all, green, yellow, red, upsellRes] = await Promise.all([
-      fetch(`${PB}/api/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(BASE)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
-      fetch(`${PB}/api/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(`(${BASE})&&health="green"`)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
-      fetch(`${PB}/api/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(`(${BASE})&&health="yellow"`)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
-      fetch(`${PB}/api/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(`(${BASE})&&health="red"`)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
-      fetch(`${PB}/api/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(`(${BASE})&&upsell_score>=40`)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
+      fetch(`${PB}/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(BASE)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
+      fetch(`${PB}/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(`(${BASE})&&health="green"`)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
+      fetch(`${PB}/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(`(${BASE})&&health="yellow"`)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
+      fetch(`${PB}/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(`(${BASE})&&health="red"`)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
+      fetch(`${PB}/collections/churn_scores/records?perPage=1&filter=${encodeURIComponent(`(${BASE})&&upsell_score>=40`)}`).then(r => r.json()).catch(() => ({ totalItems: 0 })),
     ]);
 
     const STATUS_F = encodeURIComponent('status="active"||status="non_renewing"');
     let totalMrr = 0, pg = 1;
     while (true) {
-      const r = await fetch(`${PB}/api/collections/accounts/records?perPage=500&page=${pg}&fields=mrr_inr&filter=${STATUS_F}`).then(r => r.json()).catch(() => ({ items: [] }));
+      const r = await fetch(`${PB}/collections/accounts/records?perPage=500&page=${pg}&fields=mrr_inr&filter=${STATUS_F}`).then(r => r.json()).catch(() => ({ items: [] }));
       totalMrr += (r.items || []).reduce((s: number, a: any) => s + (a.mrr_inr || 0), 0);
       if ((r.items || []).length < 500) break;
       pg++;
@@ -208,14 +208,14 @@ export default function DashboardClient() {
     let churnMrr = 0, warningMrr = 0;
     pg = 1;
     while (true) {
-      const r = await fetch(`${PB}/api/collections/churn_scores/records?perPage=500&page=${pg}&filter=${RED_F}&expand=account_id`).then(r => r.json()).catch(() => ({ items: [] }));
+      const r = await fetch(`${PB}/collections/churn_scores/records?perPage=500&page=${pg}&filter=${RED_F}&expand=account_id`).then(r => r.json()).catch(() => ({ items: [] }));
       churnMrr += (r.items || []).reduce((s: number, sc: any) => s + (sc.expand?.account_id?.mrr_inr || 0), 0);
       if ((r.items || []).length < 500) break;
       pg++;
     }
     pg = 1;
     while (true) {
-      const r = await fetch(`${PB}/api/collections/churn_scores/records?perPage=500&page=${pg}&filter=${YELLOW_F}&expand=account_id`).then(r => r.json()).catch(() => ({ items: [] }));
+      const r = await fetch(`${PB}/collections/churn_scores/records?perPage=500&page=${pg}&filter=${YELLOW_F}&expand=account_id`).then(r => r.json()).catch(() => ({ items: [] }));
       warningMrr += (r.items || []).reduce((s: number, sc: any) => s + (sc.expand?.account_id?.mrr_inr || 0), 0);
       if ((r.items || []).length < 500) break;
       pg++;
@@ -270,7 +270,7 @@ export default function DashboardClient() {
   useEffect(() => {
     fetchStats();
     fetchAccounts(initPage, initSearch, initTab, initSort, initDir, initKam, initInd);
-    fetch(`${PB}/api/collections/accounts/records?perPage=500&fields=kam,industry&filter=${encodeURIComponent('status="active"||status="non_renewing"')}`)
+    fetch(`${PB}/collections/accounts/records?perPage=500&fields=kam,industry&filter=${encodeURIComponent('status="active"||status="non_renewing"')}`)
       .then(r => r.json())
       .then(data => {
         setKamOptions(Array.from(new Set((data.items || []).map((a: any) => a.kam).filter(Boolean))).sort() as string[]);

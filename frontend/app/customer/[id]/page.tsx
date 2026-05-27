@@ -18,7 +18,7 @@ import {
   Ticket,
 } from "lucide-react";
 
-const PB = process.env.NEXT_PUBLIC_PB_BASE || "http://127.0.0.1:8090";
+const PB = "/api/pb";
 
 type Account = {
   id: string;
@@ -150,7 +150,7 @@ export default function CustomerPage() {
     setLoading(true);
     // Find the churn_score record that expands the account
     const res = await fetch(
-      `${PB}/api/collections/churn_scores/records?filter=account_id="${id}"&expand=account_id&perPage=1`
+      `${PB}/collections/churn_scores/records?filter=account_id="${id}"&expand=account_id&perPage=1`
     ).then((r) => r.json()).catch(() => ({ items: [] }));
 
     const s = res.items?.[0];
@@ -217,7 +217,7 @@ export default function CustomerPage() {
 
   const fetchNotes = async () => {
     const res = await fetch(
-      `${PB}/api/collections/notes/records?filter=account_id="${id}"&sort=-created`
+      `${PB}/collections/notes/records?filter=account_id="${id}"&sort=-created`
     ).then((r) => r.json()).catch(() => ({ items: [] }));
     setNotes((res.items || []).map((n: any) => ({ id: n.id, author: n.author, body: n.body, created: n.created })));
   };
@@ -231,7 +231,7 @@ export default function CustomerPage() {
 
   const addNote = async () => {
     if (!noteBody.trim()) return;
-    await fetch(`${PB}/api/collections/notes/records`, {
+    await fetch(`${PB}/collections/notes/records`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ account_id: id, author, body: noteBody }),
