@@ -8,6 +8,9 @@ services:
       - "8090:8090"
     volumes:
       - ./pb_data:/pb_data
+    environment:
+      PB_EMAIL: ${PB_EMAIL}
+      PB_PASSWORD: ${PB_PASSWORD}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8090/api/health"]

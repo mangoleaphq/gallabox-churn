@@ -16,4 +16,5 @@ COPY pb_migrations/ /pb/pb_migrations/
 
 EXPOSE 8090
 
-CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8090", "--dir=/pb_data", "--migrationsDir=/pb/pb_migrations"]
+CMD /pb/pocketbase superuser upsert "$PB_EMAIL" "$PB_PASSWORD" --dir=/pb_data && \
+    exec /pb/pocketbase serve --http=0.0.0.0:8090 --dir=/pb_data --migrationsDir=/pb/pb_migrations
