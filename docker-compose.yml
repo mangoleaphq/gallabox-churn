@@ -33,6 +33,7 @@ services:
       AMPLITUDE_ACCOUNT_PROP: ${AMPLITUDE_ACCOUNT_PROP}
       AUTH_PASSWORD: ${AUTH_PASSWORD}
       AUTH_SECRET: ${AUTH_SECRET}
+      SECURE_COOKIE: ${SECURE_COOKIE}
     depends_on:
       pocketbase:
         condition: service_healthy
