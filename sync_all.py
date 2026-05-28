@@ -80,14 +80,7 @@ def main():
         log("FATAL: ingest failed — aborting pipeline")
         sys.exit(1)
 
-    # Step 2 — Chargebee subscriptions snapshot (required by scorer)
-    ok, t = run_step("fetch_subs", ["python3", "fetch_subs.py"])
-    results.append(("fetch_subs", ok, t))
-    if not ok:
-        log("FATAL: fetch_subs failed — aborting pipeline")
-        sys.exit(1)
-
-    # Step 3 — Zoho Desk tickets
+    # Step 2 — Zoho Desk tickets
     if not SKIP_TICKETS:
         cmd = ["python3", "sync_zoho_tickets.py"]
         if QUICK:

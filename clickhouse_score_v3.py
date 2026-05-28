@@ -863,7 +863,7 @@ def main():
         subs = json.load(open(_subs_path))
         print(f"✓ {len(subs)} Chargebee subscriptions loaded")
     except FileNotFoundError:
-        print("⚠ No data/subs_live.json — run fetch_subs.py first")
+        print("⚠ No data/subs_live.json — run ingest.py first")
         subs = {}
     except Exception as e:
         print(f"⚠ Failed to load subs_live.json: {e}")
