@@ -73,14 +73,21 @@ def main():
 
     results = []  # list of (name, ok, elapsed)
 
-    # Step 1 — Chargebee subscriptions (required by scorer)
+    # Step 1 — Ingest accounts into PocketBase from Chargebee + Amplitude
+    ok, t = run_step("ingest", ["python3", "ingest.py"])
+    results.append(("ingest", ok, t))
+    if not ok:
+        log("FATAL: ingest failed — aborting pipeline")
+        sys.exit(1)
+
+    # Step 2 — Chargebee subscriptions snapshot (required by scorer)
     ok, t = run_step("fetch_subs", ["python3", "fetch_subs.py"])
     results.append(("fetch_subs", ok, t))
     if not ok:
         log("FATAL: fetch_subs failed — aborting pipeline")
         sys.exit(1)
 
-    # Step 2 — Zoho Desk tickets
+    # Step 3 — Zoho Desk tickets
     if not SKIP_TICKETS:
         cmd = ["python3", "sync_zoho_tickets.py"]
         if QUICK:
@@ -93,7 +100,7 @@ def main():
     else:
         results.append(("sync_tickets", None, 0))
 
-    # Step 3 — Zoho CRM / KAM signals
+    # Step 4 — Zoho CRM / KAM signals
     if not SKIP_CRM:
         ok, t = run_step("sync_crm", ["python3", "sync_zoho_crm.py"])
         results.append(("sync_crm", ok, t))
@@ -103,7 +110,7 @@ def main():
     else:
         results.append(("sync_crm", None, 0))
 
-    # Step 4 — Score all accounts
+    # Step 5 — Score all accounts
     if not SKIP_SCORE:
         ok, t = run_step("score_v3", ["python3", "clickhouse_score_v3.py"])
         results.append(("score_v3", ok, t))
