@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server";
-import { stat } from "fs/promises";
-import path from "path";
 
 const PB_BASE = process.env.PB_BASE || "http://127.0.0.1:8090";
+const PB_EMAIL = process.env.PB_EMAIL || "";
+const PB_PASSWORD = process.env.PB_PASSWORD || "";
+
+async function getPbToken(): Promise<string | null> {
+  try {
+    const res = await fetch(`${PB_BASE}/api/collections/_superusers/auth-with-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identity: PB_EMAIL, password: PB_PASSWORD }),
+      signal: AbortSignal.timeout(3000),
+    });
+    const json = await res.json();
+    return json.token ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET() {
   const checks: Record<string, { ok: boolean; detail?: string }> = {};
 
-  // PocketBase
+  // PocketBase reachability
   try {
     const res = await fetch(`${PB_BASE}/api/health`, { signal: AbortSignal.timeout(3000) });
     checks.pocketbase = { ok: res.ok };
@@ -15,18 +30,22 @@ export async function GET() {
     checks.pocketbase = { ok: false, detail: e.message };
   }
 
-  // Subscription cache freshness
+  // Data freshness — check accounts collection has records (i.e. ingest has run)
   try {
-    const subsPath = path.join(process.cwd(), "..", "data", "subs_live.json");
-    const s = await stat(subsPath);
-    const ageMinutes = Math.round((Date.now() - s.mtimeMs) / 60000);
-    const stale = ageMinutes > 120;
-    checks.subs_cache = {
-      ok: !stale,
-      detail: `last updated ${ageMinutes} min ago${stale ? " — run fetch_subs.py" : ""}`,
+    const token = await getPbToken();
+    if (!token) throw new Error("auth failed");
+    const res = await fetch(`${PB_BASE}/api/collections/accounts/records?perPage=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    const json = await res.json();
+    const count = json.totalItems ?? 0;
+    checks.data = {
+      ok: count > 0,
+      detail: count > 0 ? `${count} accounts` : "no accounts — run ingest.py",
     };
-  } catch {
-    checks.subs_cache = { ok: false, detail: "data/subs_live.json not found — run fetch_subs.py" };
+  } catch (e: any) {
+    checks.data = { ok: false, detail: e.message };
   }
 
   const allOk = Object.values(checks).every((c) => c.ok);

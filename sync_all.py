@@ -110,7 +110,13 @@ def main():
     else:
         results.append(("sync_crm", None, 0))
 
-    # Step 5 — Score all accounts
+    # Step 5 — Refresh monthly metrics (used by /metrics page)
+    ok, t = run_step("monthly_metrics", ["python3", "refresh_monthly_metrics.py"])
+    results.append(("monthly_metrics", ok, t))
+    if not ok:
+        log("WARNING: refresh_monthly_metrics failed — metrics page may be stale")
+
+    # Step 6 — Score all accounts
     if not SKIP_SCORE:
         ok, t = run_step("score_v3", ["python3", "clickhouse_score_v3.py"])
         results.append(("score_v3", ok, t))
