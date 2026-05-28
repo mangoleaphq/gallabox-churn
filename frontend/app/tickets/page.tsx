@@ -20,7 +20,7 @@ import {
   Ticket,
 } from "lucide-react";
 
-const PB = "http://127.0.0.1:8090";
+const PB = "/api/pb";
 
 type SortKey = "created_time" | "ticket_number" | "priority" | "status" | "category" | "company" | "thread_count";
 type SortDir = "desc" | "asc";
@@ -87,7 +87,7 @@ export default function TicketsPage() {
       // Fetch active tickets (Open + On Hold)
       const filter = encodeURIComponent('status_type="Open"||status_type="On Hold"');
       const res = await fetch(
-        `${PB}/api/collections/zoho_tickets/records?filter=${filter}&perPage=500&sort=-created_time`
+        `${PB}/collections/zoho_tickets/records?filter=${filter}&perPage=500&sort=-created_time`
       ).then(r => r.json()).catch(() => ({ items: [] }));
 
       const rawTickets = res.items || [];
@@ -101,7 +101,7 @@ export default function TicketsPage() {
         const chunk = accountIds.slice(i, i + 50);
         const f = chunk.map(id => `id="${id}"`).join("||");
         const aRes = await fetch(
-          `${PB}/api/collections/accounts/records?filter=${encodeURIComponent(f)}&fields=id,company,email,kam,lead_owner&perPage=100`
+          `${PB}/collections/accounts/records?filter=${encodeURIComponent(f)}&fields=id,company,email,kam,lead_owner&perPage=100`
         ).then(r => r.json()).catch(() => ({ items: [] }));
         for (const a of (aRes.items || [])) {
           accountMap[a.id] = a;

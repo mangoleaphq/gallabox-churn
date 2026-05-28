@@ -111,12 +111,13 @@ def pb_request(method: str, path: str, data: dict = None):
 
 
 def get_all_active_accounts() -> dict:
-    """Returns {email.lower(): pb_account_id} for all active accounts."""
+    """Returns {email.lower(): pb_account_id} for all non-cancelled accounts."""
     email_to_id = {}
     page = 1
     per_page = 500
+    f = urllib.parse.quote('status!="cancelled"&&status!="unknown"')
     while True:
-        path = f"/api/collections/accounts/records?filter=status%3D%22active%22&perPage={per_page}&page={page}&fields=id,email"
+        path = f"/api/collections/accounts/records?filter={f}&perPage={per_page}&page={page}&fields=id,email"
         res, err = pb_request("GET", path)
         if err or not res:
             break

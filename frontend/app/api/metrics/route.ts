@@ -1,20 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getIp } from "@/lib/rateLimit";
-
-const PB_BASE     = process.env.PB_BASE     || "http://127.0.0.1:8090";
-const PB_EMAIL    = process.env.PB_EMAIL    || "";
-const PB_PASSWORD = process.env.PB_PASSWORD || "";
-
-async function getPBToken(): Promise<string> {
-  const res = await fetch(`${PB_BASE}/api/collections/_superusers/auth-with-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identity: PB_EMAIL, password: PB_PASSWORD }),
-  });
-  const json = await res.json();
-  if (!json.token) throw new Error("PB auth failed");
-  return json.token;
-}
+import { pbFetch } from "@/lib/pb";
 
 function mom(curr: number, prev: number): number {
   if (!prev || prev === 0) return 0;
@@ -40,11 +26,7 @@ export async function GET(req: NextRequest) {
   const { ok } = rateLimit(getIp(req), 30, 60_000);
   if (!ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   try {
-    const token = await getPBToken();
-
-    const res = await fetch(`${PB_BASE}/api/collections/monthly_metrics/records?sort=month&perPage=100`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await pbFetch("/api/collections/monthly_metrics/records?sort=month&perPage=100");
     const json = await res.json();
     const raw: Record<string, any>[] = json.items || [];
 
