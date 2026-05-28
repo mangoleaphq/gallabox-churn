@@ -1,0 +1,13 @@
+[Unit]
+Description=Gallabox Churn Deploy Webhook
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+EnvironmentFile=/home/ubuntu/source/gallabox-churn/.env
+ExecStart=/usr/bin/python3 /home/ubuntu/source/gallabox-churn/webhook.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
